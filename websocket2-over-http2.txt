@@ -72,21 +72,22 @@ Table of Contents
    3.  Handshake . . . . . . . . . . . . . . . . . . . . . . . . . .   3
      3.1.  Client Handshake Request  . . . . . . . . . . . . . . . .   3
      3.2.  Server Handshake Reply  . . . . . . . . . . . . . . . . .   4
-     3.3.  Invalid Requests  . . . . . . . . . . . . . . . . . . . .   4
+       3.2.1.  Handshake Error Reasons . . . . . . . . . . . . . . .   5
+     3.3.  Invalid Requests  . . . . . . . . . . . . . . . . . . . .   5
      3.4.  Post Handshake  . . . . . . . . . . . . . . . . . . . . .   5
    4.  Data Framing  . . . . . . . . . . . . . . . . . . . . . . . .   5
      4.1.  Text Frame  . . . . . . . . . . . . . . . . . . . . . . .   6
      4.2.  Binary Frame  . . . . . . . . . . . . . . . . . . . . . .   6
      4.3.  Error Frame . . . . . . . . . . . . . . . . . . . . . . .   6
-       4.3.1.  Error Frame Prefix Codes  . . . . . . . . . . . . . .   6
+       4.3.1.  Error Frame Codes . . . . . . . . . . . . . . . . . .   7
    5.  Compression . . . . . . . . . . . . . . . . . . . . . . . . .   7
-     5.1.  LZ4 Compressed Payload  . . . . . . . . . . . . . . . . .   7
-     5.2.  Deflate Compressed Payload  . . . . . . . . . . . . . . .   7
+     5.1.  LZ4 Compressed Payload  . . . . . . . . . . . . . . . . .   8
+     5.2.  Deflate Compressed Payload  . . . . . . . . . . . . . . .   8
    6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   8
      6.1.  Normative References  . . . . . . . . . . . . . . . . . .   8
      6.2.  Informative References  . . . . . . . . . . . . . . . . .   8
-   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .   8
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .   8
+   Appendix A.  Acknowledgements . . . . . . . . . . . . . . . . . .   9
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .   9
 
 1.  Introduction
 
@@ -108,7 +109,6 @@ Table of Contents
 
 
 
-
 Svirid                    Expires April 4, 2017                 [Page 2]
 
 Internet-Draft           WebSocket2 over HTTP/2             October 2016
@@ -119,11 +119,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in RFC 2119 [RFC2119].
-
-   Additionally, the key words "*MIGHT*", "*COULD*", "*MAY WISH TO*",
-   "*WOULD PROBABLY*", "*SHOULD CONSIDER*", and "*MUST (BUT WE KNOW YOU
-   WON'T)*" in this document are to interpreted as described in RFC 6919
-   [RFC6919].
 
 2.  Overview
 
@@ -152,7 +147,7 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 3.1.  Client Handshake Request
 
    The client MUST send the path and the authority to the server, the
-   server is responsible for verifing the authority and validating it.
+   server is responsible for verifying the authority and validating it.
 
    The client MUST send a websocket2-version header that MUST specify
    the websocket2 version being used.
@@ -160,6 +155,11 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    The client MAY send a websocket2-compression header that advertises
    the compression methods the client supports.  Valid key value pairs
    include:
+
+
+
+
+
 
 
 
@@ -173,8 +173,8 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    o lz4=1-9;
        * This client supports lz4 with compression levels from 1 to 9
 
-   o lz4=1,3,5-8;
-       * This client supports lz4 with compression levels 1, 3 and 5-8
+   o lz4=1;
+       * This client supports lz4 with compression levels 1
 
    o deflate=8-15;
        * This client supports deflate with sliding window bits from 8-15
@@ -201,6 +201,10 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    or exclude the websocket2-compression header from the reply,
    signaling that no compression will be used.
 
+   If the handshake resulted in an error on the server, the server MUST
+   include the websocket2-error header in the reply with an outlined
+   error reason.
+
    A server handshake reply may look like:
 
                       :status: 200
@@ -210,6 +214,34 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    level of 1.  Now both the client and server MUST use only this
    compression method.
 
+
+
+
+
+
+
+
+Svirid                    Expires April 4, 2017                 [Page 4]
+
+Internet-Draft           WebSocket2 over HTTP/2             October 2016
+
+
+3.2.1.  Handshake Error Reasons
+
+   Valid error reasons are:
+
+       invalid_version
+           * This version of websockets is not supported by the server
+
+       cannot_negotiate_compression
+           * This means the client did not offer any compression that
+           the server requires
+
+       rejected
+           * This means the server rejected the client and does not want
+           to say why. This means the server supports websockets, but
+           rejected this particular client
+
 3.3.  Invalid Requests
 
    If a request is made to a WebSocket2 authority and path without the
@@ -218,13 +250,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    If a request is made to a non WebSocket2 authority and path
    containing the websocket2-version header, a 501 :status MUST be
    replied.
-
-
-
-Svirid                    Expires April 4, 2017                 [Page 4]
-
-Internet-Draft           WebSocket2 over HTTP/2             October 2016
-
 
    If the server rejects the client due to inability or unwillingness to
    negotiate, a 501 :status MUST be replied.
@@ -242,13 +267,21 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
    Once a handshake has been successfully completed the remote endpoints
    can begin to send data to each other.  Data is sent using the HTTP/2
-   transport layer fully adhering to DATA Frames, Secton 6.1 [RFC7540].
+   transport layer fully adhering to DATA Frames, Section 6.1 [RFC7540].
    WebSocket2 has its own encapsulated framing protocol that is not to
    be confused with HTTP/2 DATA Frames.
 
    Three frame types are defined:
 
       text (represented by 0)
+
+
+
+Svirid                    Expires April 4, 2017                 [Page 5]
+
+Internet-Draft           WebSocket2 over HTTP/2             October 2016
+
+
       binary (represented by 1)
       error (represented by 2)
 
@@ -275,13 +308,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
      |   - E  |                                   |               | ->
      +--------+--------+--------+--------+--------+--------+------+
 
-
-
-Svirid                    Expires April 4, 2017                 [Page 5]
-
-Internet-Draft           WebSocket2 over HTTP/2             October 2016
-
-
 4.1.  Text Frame
 
    The text frame has a Frame Type value of 0.  The payload must be
@@ -305,6 +331,13 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    The HTTP/2 transport layer DATA frame carrying the WebSocket2 error
    frame MUST have the END_STREAM flag set.
 
+
+
+Svirid                    Expires April 4, 2017                 [Page 6]
+
+Internet-Draft           WebSocket2 over HTTP/2             October 2016
+
+
    No further WebSocket2 frames may be sent from this point onward and
    the stream is half closed.
 
@@ -315,14 +348,14 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
                   0         1        2        3        4
               +--------+--------+--------+--------+--------+
-              |   -    |        Error Prefix Code          |
+              |   -    |           Error Code              |
               | 0 | 2  |            (32 bits)              |
               |   -    |                                   |
               +--------+--------+--------+--------+--------+
 
-4.3.1.  Error Frame Prefix Codes
+4.3.1.  Error Frame Codes
 
-   Valid error frame prefix codes currently are:
+   Valid error frame codes currently are:
 
    OKAY
 
@@ -330,13 +363,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
       stream gracefully.
 
    UTF8
-
-
-
-Svirid                    Expires April 4, 2017                 [Page 6]
-
-Internet-Draft           WebSocket2 over HTTP/2             October 2016
-
 
       * This should be sent when invalid UTF8 was passed in a text frame
       by a remote endpoint.
@@ -352,13 +378,21 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
 5.  Compression
 
-   WebSockets defined one compression method which used deflate and kept
+   WebSocket defined one compression method which used deflate and kept
    a sliding window.  This compression is great for text like json but
    pretty poor at everything else.  Also keeping a sliding window is
    memory intensive.
 
    Lz4 is a compression method that is great for any kind of data while
    being very cheap.  WebSocket2 is expected to transmit beyond text.
+
+
+
+
+Svirid                    Expires April 4, 2017                 [Page 7]
+
+Internet-Draft           WebSocket2 over HTTP/2             October 2016
+
 
    Currently two compression methods are defined lz4 and deflate.  The
    protocol is open to tweaking or accepting more in the future.
@@ -387,13 +421,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    If the deflated payload trailing 4 bytes are 0x00, 0x00, 0xFF, 0xFF,
    remove them before sending the payload.
 
-
-
-Svirid                    Expires April 4, 2017                 [Page 7]
-
-Internet-Draft           WebSocket2 over HTTP/2             October 2016
-
-
    Before inflating the payload append 0x00, 0x00, 0xFF, 0xFF to the end
    of it.
 
@@ -406,16 +433,22 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
               DOI 10.17487/RFC2119, March 1997,
               <http://www.rfc-editor.org/info/rfc2119>.
 
-   [RFC6919]  Barnes, R., Kent, S., and E. Rescorla, "Further Key Words
-              for Use in RFCs to Indicate Requirement Levels", RFC 6919,
-              DOI 10.17487/RFC6919, April 2013,
-              <http://www.rfc-editor.org/info/rfc6919>.
-
 6.2.  Informative References
 
    [RFC6455]  Fette, I. and A. Melnikov, "The WebSocket Protocol",
               RFC 6455, DOI 10.17487/RFC6455, December 2011,
               <http://www.rfc-editor.org/info/rfc6455>.
+
+
+
+
+
+
+
+Svirid                    Expires April 4, 2017                 [Page 8]
+
+Internet-Draft           WebSocket2 over HTTP/2             October 2016
+
 
    [RFC7540]  Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
               Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
@@ -445,4 +478,27 @@ Author's Address
 
 
 
-Svirid                    Expires April 4, 2017                 [Page 8]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Svirid                    Expires April 4, 2017                 [Page 9]

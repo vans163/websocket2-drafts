@@ -43,10 +43,6 @@ The key words "**MUST**", "**MUST NOT**", "**REQUIRED**", "**SHALL**", "**SHALL 
 "**SHOULD**", "**SHOULD NOT**", "**RECOMMENDED**", "**MAY**", and "**OPTIONAL**" in this
 document are to be interpreted as described in RFC 2119 [@!RFC2119].
 
-Additionally, the key words "**MIGHT**", "**COULD**", "**MAY WISH TO**", "**WOULD
-PROBABLY**", "**SHOULD CONSIDER**", and "**MUST (BUT WE KNOW YOU WON'T)**" in
-this document are to interpreted as described in RFC 6919 [@!RFC6919].
-
 #  Overview
 
 WebSocket2 is functionally equivalent to binary streaming between a sandboxed 
@@ -76,7 +72,7 @@ the server, to negotiate a compression medium.
 ## Client Handshake Request
     
 The client MUST send the path and the authority to the
-server, the server is responsible for verifing the authority
+server, the server is responsible for verifying the authority
 and validating it.
 
 The client MUST send a websocket2-version header that MUST specify
@@ -88,8 +84,8 @@ the compression methods the client supports. Valid key value pairs include:
     o lz4=1-9;
         * This client supports lz4 with compression levels from 1 to 9
 
-    o lz4=1,3,5-8;
-        * This client supports lz4 with compression levels 1, 3 and 5-8
+    o lz4=1;
+        * This client supports lz4 with compression levels 1
 
     o deflate=8-15;
         * This client supports deflate with sliding window bits from 8-15
@@ -117,6 +113,10 @@ The server MUST send ONLY ONE of the advertised compression methods
 or exclude the websocket2-compression header from the reply, signaling
 that no compression will be used.
 
+If the handshake resulted in an error on the server, the server
+MUST include the websocket2-error header in the reply with an outlined
+error reason.
+
 A server handshake reply may look like:
 ~~~
 :status: 200
@@ -124,6 +124,24 @@ websocket2-compression: lz4=1;
 ~~~
 This signals that the server chose to use lz4 with a compression level of 1. 
 Now both the client and server MUST use only this compression method.
+
+### Handshake Error Reasons
+
+Valid error reasons are:
+
+~~~
+    invalid_version
+        * This version of websockets is not supported by the server
+
+    cannot_negotiate_compression
+        * This means the client did not offer any compression that 
+        the server requires
+
+    rejected
+        * This means the server rejected the client and does not want
+        to say why. This means the server supports websockets, but 
+        rejected this particular client
+~~~
 
 ## Invalid Requests
 
@@ -148,7 +166,7 @@ gracefully terminated.  Only a HTTP/2 DATA frame containing a WebSocket2 error f
 
 Once a handshake has been successfully completed the remote endpoints
 can begin to send data to each other.  Data is sent using the HTTP/2 transport
-layer fully adhering to DATA Frames, Secton 6.1 [@?RFC7540]. WebSocket2 has its own encapsulated framing protocol that is not to be confused with HTTP/2 DATA 
+layer fully adhering to DATA Frames, Section 6.1 [@?RFC7540]. WebSocket2 has its own encapsulated framing protocol that is not to be confused with HTTP/2 DATA 
 Frames.
 
 Three frame types are defined:
@@ -209,15 +227,15 @@ followed by an error frame of its own with the OKAY error code.  The HTTP/2 Data
 ~~~
     0         1        2        3        4                  
 +--------+--------+--------+--------+--------+
-|   -    |        Error Prefix Code          |      
+|   -    |           Error Code              |      
 | 0 | 2  |            (32 bits)              | 
 |   -    |                                   |   
 +--------+--------+--------+--------+--------+
 ~~~
 
-### Error Frame Prefix Codes
+### Error Frame Codes
 
-  Valid error frame prefix codes currently are:
+  Valid error frame codes currently are:
     
   OKAY
 : <br/>* This should be sent went a client or server want to close the stream
@@ -237,7 +255,7 @@ followed by an error frame of its own with the OKAY error code.  The HTTP/2 Data
 {#fig-compression}
 # Compression
 
-WebSockets defined one compression method which used deflate and
+WebSocket defined one compression method which used deflate and
 kept a sliding window.  This compression is great for text like json but
 pretty poor at everything else. Also keeping a sliding window is memory
 intensive.
