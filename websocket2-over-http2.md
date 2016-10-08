@@ -207,9 +207,9 @@ binary data which the application layer passes without comprehension.
 ## Error Frame
 
 The error frame has a Frame Type value of 2.  It MUST contain a VALID 
-4 byte error code.  If the code is shorter than 4 bytes, 0 bytes MUST
-make up the rest to fill a total of 4 bytes.  Currently there are no
-error codes less than 4 bytes.
+32 bit error code.  If the code is shorter than 32 bits, 0 bits MUST
+make up the rest to fill a total of 32 bits.  Currently there are no
+error codes less than 32 bits.
 
 The HTTP/2 transport layer DATA frame carrying the WebSocket2 error frame MUST
 have the END_STREAM flag set.
@@ -275,9 +275,9 @@ The protocol is open to tweaking or accepting more in the future.
 
 ## LZ4 Compressed Payload
 
-A lz4 compressed payload is a VarSize number of the decompressed byte size
-followed by the actual compressed bytes. The lz4 compression level to use MUST 
-be what was negotiated in the handshake.
+A lz4 compressed payload is a VarSize number of the decompressed size
+followed by the actual compressed payload. The lz4 compression level to use 
+MUST be what was negotiated in the handshake.
 
 A lz4 compressed payload may look like:
 
@@ -302,7 +302,7 @@ more strict bounds.  There is no ability to reset compression context.
 ~~~
 Any sliding window MUST NEVER have its context reset.
 
-If the deflated payload trailing 4 bytes are 0x00, 0x00, 0xFF, 0xFF, remove
+If the deflated payload trailing 4 octets are 0x00, 0x00, 0xFF, 0xFF, remove
 them before sending the payload.
 
 Before inflating the payload append 0x00, 0x00, 0xFF, 0xFF to the end of it.
