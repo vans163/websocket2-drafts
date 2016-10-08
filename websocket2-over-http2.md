@@ -50,9 +50,7 @@ client and inexplicit host, but layered on top of HTTP2.  Key advantages of
 WebSocket2 frames over HTTP/2 include:
 
    o  Two-way real time communication
-
    o  Server push and delivery without client request
-
    o  Binary transmission
 
 
@@ -61,8 +59,6 @@ WebSocket2 frames over HTTP/2 include:
 The protocol has two main parts, the handshake and data transfer. Data 
 transmitted using WebSocket2 supports compression. 
 
-The protocol relies on HTTP/2 for flow control.
-
 
 #  Handshake
 
@@ -70,15 +66,13 @@ The main job of the handshake is to request authority and if granted by
 the server, to negotiate a compression medium.
 
 ## Client Handshake Request
-    
-The client MUST send the path and the authority to the
-server, the server is responsible for verifying the authority
-and validating it.
 
-The client MUST send a websocket2-version header that MUST specify
+The client MUST use the :method CONNECT.
+
+The client MUST send a sec-ws2-version header that MUST specify
 the websocket2 version being used.
 
-The client MAY send a websocket2-compression header that advertises
+The client MAY send a sec-ws2-compression header that advertises
 the compression methods the client supports. Valid key value pairs include:
 
     o lz4=1-9;
@@ -97,30 +91,31 @@ The client MUST NOT set the END_STREAM flag when sending the headers.
 A client handshake request may look like:
 
 ~~~
+:method: CONNECT
+:scheme: wss
 :authority: example.org
-:method: GET
 :path: /ws2
-websocket2-version: 1
-websocket2-compression: lz4=1-9; deflate=8-15;
+sec-ws2-version: 1
+sec-ws2-compression: lz4=1-9; deflate=8-15;
 ~~~
 
 ## Server Handshake Reply
 
-The server MUST send a status 200 when accepting the peer or it 
-MUST send a status 501 when rejecting the peer. END_STREAM on the HTTP/2 Data frame MUST only be set in the case of rejection.
+END_STREAM on the HTTP/2 Header frame MUST only be set in the case of 
+rejection.
 
 The server MUST send ONLY ONE of the advertised compression methods
-or exclude the websocket2-compression header from the reply, signaling
+or exclude the sec-ws2-compression header from the response, signaling
 that no compression will be used.
 
-If the handshake resulted in an error on the server, the server
-MUST include the websocket2-error header in the reply with an outlined
+The server MUST include the sec-ws2-error header in the reply with an outlined
 error reason.
 
-A server handshake reply may look like:
+A successful server handshake reply may look like:
 ~~~
 :status: 200
-websocket2-compression: lz4=1;
+sec-ws2-compression: lz4=1;
+sec-ws2-error: success
 ~~~
 This signals that the server chose to use lz4 with a compression level of 1. 
 Now both the client and server MUST use only this compression method.
@@ -130,6 +125,9 @@ Now both the client and server MUST use only this compression method.
 Valid error reasons are:
 
 ~~~
+    success
+        * The server accepted the client
+
     invalid_version
         * This version of websockets is not supported by the server
 
@@ -143,19 +141,6 @@ Valid error reasons are:
         rejected this particular client
 ~~~
 
-## Invalid Requests
-
-If a request is made to a WebSocket2 authority and path without the
-websocket2-version header, a 501 :status MUST be replied.
-
-If a request is made to a non WebSocket2 authority and path containing
-the websocket2-version header, a 501 :status MUST be replied.
-
-If the server rejects the client due to inability or unwillingness to 
-negotiate, a 501 :status MUST be replied.
-
-Any other error conditions are outside the scope of WebSocket2.
-
 ## Post Handshake
 
 Following the handshake the client or server MUST NEVER set the
@@ -166,8 +151,7 @@ gracefully terminated.  Only a HTTP/2 DATA frame containing a WebSocket2 error f
 
 Once a handshake has been successfully completed the remote endpoints
 can begin to send data to each other.  Data is sent using the HTTP/2 transport
-layer fully adhering to DATA Frames, Section 6.1 [@?RFC7540]. WebSocket2 has its own encapsulated framing protocol that is not to be confused with HTTP/2 DATA 
-Frames.
+layer fully adhering to DATA Frames, Section 6.1 [@?RFC7540]. WebSocket2 has its own encapsulated framing protocol that is not to be confused with HTTP/2 DATA Frames.
 
 Three frame types are defined:
 
@@ -175,13 +159,23 @@ Three frame types are defined:
 : <br/>binary (represented by 1)
 : <br/>error  (represented by 2)
 
-A WebSocket2 over HTTP/2 frame starts with 4 bits that are reserved that MUST 
-be set to 0. 
+Three compression types are defined:
 
-The next 4 bits specify the frame type.
+: <br/>none    (represented by 0)
+: <br/>lz4     (represented by 1)
+: <br/>deflate (represented by 2)
 
-Next is a 32 bit unsigned integer in little endian format to specify the length
-of the payload.  The maximum length of a payload is 4294967295.
+A WebSocket2 over HTTP/2 frame starts with the full frame length in a special 
+format called VarSize [##VarSize]. If the first octet is less than 254, this 
+is the full frame length. If the first octet is 254, read the next 16 bits as a 
+little endian unsigned number for the frame length. If the first octet is 255, 
+read the next 32 bits as a little endian unsigned number for the frame length.
+
+Next are 4 reserved bits that MUST be set to 0. 
+
+The next 2 bits specify the compression type.
+
+The next 2 bits specify the frame type.
 
 Next is the payload which MAY be compressed if compression was negotiated. 
 
@@ -189,13 +183,13 @@ The term PAYLOAD in this section refers to data AFTER decompression if
 compression was negotiated.
 
 ~~~
-    0         1        2        3       4        5             
-+--------+--------+--------+--------+--------+--------+------+
-| R - T  |                                   |               | ->
-| S | Y  |            Payload Size           |    Payload    | ->
-| V | P  |               (32)                |               | ->
-|   - E  |                                   |               | ->
-+--------+--------+--------+--------+--------+--------+------+
+       0              1             2        
++--------------+--------------+--------------+
+| Frame Length | R  - C - F |                | ->
+|  (8,24,40)   | S  | T | T |   Payload      | ->
+|              | V  | P | P |                | ->
+|              |(4) -(2)-(2)|                | ->
++--------------+------------+----------------+
 ~~~
 
 ## Text Frame
@@ -223,21 +217,24 @@ have the END_STREAM flag set.
 No further WebSocket2 frames may be sent from this point onward and the stream is half closed.
 
 The remote endpoint that receives the error frame MUST flush all pending sends
-followed by an error frame of its own with the OKAY error code.  The HTTP/2 Data frame carrying this WebSocket2 frame MUST have the END_STREAM flag set.
+followed by an error frame of its own with the CLOS error code.  The HTTP/2 Data frame carrying this WebSocket2 frame MUST have the END_STREAM flag set.
+
+The full websocket2 error frame with the length:
+
 ~~~
-    0         1        2        3        4                  
-+--------+--------+--------+--------+--------+
-|   -    |           Error Code              |      
-| 0 | 2  |            (32 bits)              | 
-|   -    |                                   |   
-+--------+--------+--------+--------+--------+
+    0     01234567     2        3        4      5            
++--------+--------+--------+--------+--------+--------+
+|        |        |         Error Code                |      
+|   5    |00000010|          (32 bits)                | 
+|        |        |                                   |   
++--------+--------+--------+--------+--------+--------+
 ~~~
 
 ### Error Frame Codes
 
   Valid error frame codes currently are:
     
-  OKAY
+  CLOS
 : <br/>* This should be sent went a client or server want to close the stream
     gracefully.
 
@@ -251,33 +248,53 @@ followed by an error frame of its own with the OKAY error code.  The HTTP/2 Data
   FRAM
 : <br/>* This should be sent when an invalid Frame Type was specified.
 
+  LRGE
+: <br/>* This should be sent when an endpoint rejects a frame due
+    to it being too large.  This is up to the endpoint.
+
+# VarSize
+
+VarSize is a variable sized binary ranging from 1-5 octets.  It represents
+an unsigned value.  If the first octet is equal to 254, read the next 16 bits 
+as little endian unsigned.  If the first octet is equal
+to 255, read the next 32 bits as little endian unsigned. Otherwise if the
+first octet is less than 254, treat this as the final value.
 
 {#fig-compression}
 # Compression
 
 WebSocket defined one compression method which used deflate and
-kept a sliding window.  This compression is great for text like json but
-pretty poor at everything else. Also keeping a sliding window is memory
-intensive.
+kept a sliding window.  This compression is great but has limitations. Also 
+keeping a sliding window is memory intensive.
 
 Lz4 is a compression method that is great for any kind of data while being very
-cheap.  WebSocket2 is expected to transmit beyond text.
+cheap.
 
 Currently two compression methods are defined lz4 and deflate.
 The protocol is open to tweaking or accepting more in the future.  
 
 ## LZ4 Compressed Payload
 
-A lz4 compressed payload is a 32 bit unsigned integer in little endian format
-of the decompressed byte size followed by the actual compressed bytes.  The lz4 
-compression level to use MUST be what was negotiated in the handshake.
+A lz4 compressed payload is a VarSize number of the decompressed byte size
+followed by the actual compressed bytes. The lz4 compression level to use MUST 
+be what was negotiated in the handshake.
+
+A lz4 compressed payload may look like:
+
+~~~
+    0         1       2        3                   
++--------+--------+--------+--------+--------+--------+
+|        |   Decompressed  |     Compressed payload   | ->     
+|  254   |      Size       |                          | -> 
+|        |                 |                          | ->  
++--------+--------+--------+--------+--------+--------+
+~~~
+
 
 ## Deflate Compressed Payload
 
-The deflate compression method builds from WebSocket but defines
-more strict bounds.  There is no ability to reset compression context, if such
-an option is required consider using lz4 with compression level 9 instead, 
-it offers similar compression ratio and speed without the contexts memory overhead.
+The deflate compression method implements [@!RFC7692] but defines
+more strict bounds.  There is no ability to reset compression context.
 ~~~
     * Both client and server MUST use the sliding window bits as determined by the server.
     * The client MUST use a memory level of 8.
@@ -294,6 +311,8 @@ Before inflating the payload append 0x00, 0x00, 0xFF, 0xFF to the end of it.
 {backmatter}
 
 # Acknowledgements
+
+The author wishes to thank Kari hurtta for contributing the handshake.
 
 The author wishes to thank the participants of the WebSocket protocol,
 participants of the HTTP/2 protocol and participants of the QUIC protocol.
