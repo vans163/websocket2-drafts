@@ -46,11 +46,23 @@ document are to be interpreted as described in RFC 2119 [@!RFC2119].
 #  Overview
 
 WebSocket2 is functionally equivalent to binary streaming between a sandboxed 
-client and inexplicit host, but layered on top of HTTP2.  Key advantages of 
-WebSocket2 frames over HTTP/2 include:
+client and inexplicit host, but layered on top of HTTP2.  
+
+Key advantages of WebSocket2 over WebSocket:
+   
+   o  No masking
+
+   o  Simpler handshake and negotiation
+
+   o  Lz4 compression method
+
+
+Key advantages of WebSocket2 over HTTP/2 include:
 
    o  Two-way real time communication
+
    o  Server push and delivery without client request
+
    o  Binary transmission
 
 
@@ -67,7 +79,7 @@ the server, to negotiate a compression medium.
 
 ## Client Handshake Request
 
-The client MUST use the :method CONNECT.
+The client MUST use the :method GET.
 
 The client MUST send a sec-ws2-version header that MUST specify
 the websocket2 version being used.
@@ -91,7 +103,7 @@ The client MUST NOT set the END_STREAM flag when sending the headers.
 A client handshake request may look like:
 
 ~~~
-:method: CONNECT
+:method: GET
 :scheme: wss
 :authority: example.org
 :path: /demo
@@ -99,8 +111,6 @@ sec-ws2-version: 1
 sec-ws2-compression: lz4=1-9; deflate=8-15;
 ~~~
 
-Modification to RFC 7540 https://tools.ietf.org/html/rfc7540#section-8.3 
-is required.
 
 ## Server Handshake Reply
 
@@ -245,7 +255,7 @@ The full WebSocket2 error frame with the length:
 : <br/>* This should be sent when invalid UTF8 was passed in a text frame by a 
     remote endpoint.
 
-  COMP
+  DECO
 : <br/>* This should be sent when decompression failed by a remote endpoint.
 
   FRAM

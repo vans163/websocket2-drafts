@@ -72,14 +72,14 @@ Table of Contents
    3.  Handshake . . . . . . . . . . . . . . . . . . . . . . . . . .   3
      3.1.  Client Handshake Request  . . . . . . . . . . . . . . . .   3
      3.2.  Server Handshake Reply  . . . . . . . . . . . . . . . . .   4
-       3.2.1.  Handshake Error Reasons . . . . . . . . . . . . . . .   4
+       3.2.1.  Handshake Error Reasons . . . . . . . . . . . . . . .   5
      3.3.  Post Handshake  . . . . . . . . . . . . . . . . . . . . .   5
    4.  Data Framing  . . . . . . . . . . . . . . . . . . . . . . . .   5
      4.1.  Text Frame  . . . . . . . . . . . . . . . . . . . . . . .   6
      4.2.  Binary Frame  . . . . . . . . . . . . . . . . . . . . . .   6
      4.3.  Error Frame . . . . . . . . . . . . . . . . . . . . . . .   6
        4.3.1.  Error Frame Codes . . . . . . . . . . . . . . . . . .   7
-   5.  VarSize . . . . . . . . . . . . . . . . . . . . . . . . . . .   7
+   5.  VarSize . . . . . . . . . . . . . . . . . . . . . . . . . . .   8
    6.  Compression . . . . . . . . . . . . . . . . . . . . . . . . .   8
      6.1.  LZ4 Compressed Payload  . . . . . . . . . . . . . . . . .   8
      6.2.  Deflate Compressed Payload  . . . . . . . . . . . . . . .   8
@@ -124,10 +124,22 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
    WebSocket2 is functionally equivalent to binary streaming between a
    sandboxed client and inexplicit host, but layered on top of HTTP2.
-   Key advantages of WebSocket2 frames over HTTP/2 include:
 
-   o Two-way real time communication o Server push and delivery without
-   client request o Binary transmission
+   Key advantages of WebSocket2 over WebSocket:
+
+   o No masking
+
+   o Simpler handshake and negotiation
+
+   o Lz4 compression method
+
+   Key advantages of WebSocket2 over HTTP/2 include:
+
+   o Two-way real time communication
+
+   o Server push and delivery without client request
+
+   o Binary transmission
 
 2.1.  WebSocket2 Protocol
 
@@ -141,7 +153,7 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
 3.1.  Client Handshake Request
 
-   The client MUST use the :method CONNECT.
+   The client MUST use the :method GET.
 
    The client MUST send a sec-ws2-version header that MUST specify the
    websocket2 version being used.
@@ -149,6 +161,14 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    The client MAY send a sec-ws2-compression header that advertises the
    compression methods the client supports.  Valid key value pairs
    include:
+
+
+
+
+Svirid                   Expires April 21, 2017                 [Page 3]
+
+Internet-Draft           WebSocket2 over HTTP/2             October 2016
+
 
    o lz4=1-9;
        * This client supports lz4 with compression levels from 1 to 9
@@ -163,24 +183,14 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
    The client MUST NOT set the END_STREAM flag when sending the headers.
 
-
-
-Svirid                   Expires April 21, 2017                 [Page 3]
-
-Internet-Draft           WebSocket2 over HTTP/2             October 2016
-
-
    A client handshake request may look like:
 
-                :method: CONNECT
+                :method: GET
                 :scheme: wss
                 :authority: example.org
                 :path: /demo
                 sec-ws2-version: 1
                 sec-ws2-compression: lz4=1-9; deflate=8-15;
-
-   Modification to RFC 7540 <https://tools.ietf.org/html/
-   rfc7540#section-8.3> is required.
 
 3.2.  Server Handshake Reply
 
@@ -204,16 +214,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    level of 1.  Now both the client and server MUST use only this
    compression method.
 
-3.2.1.  Handshake Error Reasons
-
-   Valid error reasons are:
-
-
-
-
-
-
-
 
 
 
@@ -225,6 +225,10 @@ Svirid                   Expires April 21, 2017                 [Page 4]
 
 Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
+
+3.2.1.  Handshake Error Reasons
+
+   Valid error reasons are:
 
        success
            * The server accepted the client
@@ -270,10 +274,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
    A WebSocket2 over HTTP/2 frame starts with the full frame length in a
    special format called VarSize.  If the first octet is less than 254,
-   this is the full frame length.  If the first octet is 254, read the
-   next 16 bits as a little endian unsigned number for the frame length.
-   If the first octet is 255, read the next 32 bits as a little endian
-   unsigned number for the frame length.
 
 
 
@@ -281,6 +281,11 @@ Svirid                   Expires April 21, 2017                 [Page 5]
 
 Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
+
+   this is the full frame length.  If the first octet is 254, read the
+   next 16 bits as a little endian unsigned number for the frame length.
+   If the first octet is 255, read the next 32 bits as a little endian
+   unsigned number for the frame length.
 
    Next are 4 reserved bits that MUST be set to 0.
 
@@ -325,11 +330,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    The HTTP/2 transport layer DATA frame carrying the WebSocket2 error
    frame MUST have the END_STREAM flag set.
 
-   No further WebSocket2 frames may be sent from this point onward and
-   the stream is half closed.
-
-   The remote endpoint that receives the error frame MUST flush all
-   pending sends followed by an error frame of its own with the CLOS
 
 
 
@@ -338,6 +338,11 @@ Svirid                   Expires April 21, 2017                 [Page 6]
 Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
 
+   No further WebSocket2 frames may be sent from this point onward and
+   the stream is half closed.
+
+   The remote endpoint that receives the error frame MUST flush all
+   pending sends followed by an error frame of its own with the CLOS
    error code.  The HTTP/2 Data frame carrying this WebSocket2 frame
    MUST have the END_STREAM flag set.
 
@@ -364,7 +369,7 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
       * This should be sent when invalid UTF8 was passed in a text frame
       by a remote endpoint.
 
-   COMP
+   DECO
 
       * This should be sent when decompression failed by a remote
       endpoint.
@@ -378,6 +383,17 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
       * This should be sent when an endpoint rejects a frame due to it
       being too large.  This is up to the endpoint.
 
+
+
+
+
+
+
+Svirid                   Expires April 21, 2017                 [Page 7]
+
+Internet-Draft           WebSocket2 over HTTP/2             October 2016
+
+
 5.  VarSize
 
    VarSize is a variable sized binary ranging from 1-5 octets.  It
@@ -386,13 +402,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    is equal to 255, read the next 32 bits as little endian unsigned.
    Otherwise if the first octet is less than 254, treat this as the
    final value.
-
-
-
-Svirid                   Expires April 21, 2017                 [Page 7]
-
-Internet-Draft           WebSocket2 over HTTP/2             October 2016
-
 
 6.  Compression
 
@@ -433,15 +442,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
    Any sliding window MUST NEVER have its context reset.
 
-   If the deflated payload trailing 4 octets are 0x00, 0x00, 0xFF, 0xFF,
-   remove them before sending the payload.
-
-   Before inflating the payload append 0x00, 0x00, 0xFF, 0xFF to the end
-   of it.
-
-
-
-
 
 
 
@@ -449,6 +449,12 @@ Svirid                   Expires April 21, 2017                 [Page 8]
 
 Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
+
+   If the deflated payload trailing 4 octets are 0x00, 0x00, 0xFF, 0xFF,
+   remove them before sending the payload.
+
+   Before inflating the payload append 0x00, 0x00, 0xFF, 0xFF to the end
+   of it.
 
 7.  References
 
@@ -484,12 +490,6 @@ Appendix A.  Acknowledgements
    QUIC protocol.
 
 Author's Address
-
-
-
-
-
-
 
 
 
