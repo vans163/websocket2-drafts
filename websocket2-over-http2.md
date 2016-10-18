@@ -94,10 +94,13 @@ A client handshake request may look like:
 :method: CONNECT
 :scheme: wss
 :authority: example.org
-:path: /ws2
+:path: /demo
 sec-ws2-version: 1
 sec-ws2-compression: lz4=1-9; deflate=8-15;
 ~~~
+
+Modification to RFC 7540 https://tools.ietf.org/html/rfc7540#section-8.3 
+is required.
 
 ## Server Handshake Reply
 
@@ -166,7 +169,7 @@ Three compression types are defined:
 : <br/>deflate (represented by 2)
 
 A WebSocket2 over HTTP/2 frame starts with the full frame length in a special 
-format called VarSize [##VarSize]. If the first octet is less than 254, this 
+format called VarSize. If the first octet is less than 254, this 
 is the full frame length. If the first octet is 254, read the next 16 bits as a 
 little endian unsigned number for the frame length. If the first octet is 255, 
 read the next 32 bits as a little endian unsigned number for the frame length.
@@ -219,7 +222,7 @@ No further WebSocket2 frames may be sent from this point onward and the stream i
 The remote endpoint that receives the error frame MUST flush all pending sends
 followed by an error frame of its own with the CLOS error code.  The HTTP/2 Data frame carrying this WebSocket2 frame MUST have the END_STREAM flag set.
 
-The full websocket2 error frame with the length:
+The full WebSocket2 error frame with the length:
 
 ~~~
     0     01234567     2        3        4      5            
@@ -235,7 +238,7 @@ The full websocket2 error frame with the length:
   Valid error frame codes currently are:
     
   CLOS
-: <br/>* This should be sent went a client or server want to close the stream
+: <br/>* This should be sent when a client or server want to close the stream
     gracefully.
 
   UTF8
@@ -296,7 +299,8 @@ A lz4 compressed payload may look like:
 The deflate compression method implements [@!RFC7692] but defines
 more strict bounds.  There is no ability to reset compression context.
 ~~~
-    * Both client and server MUST use the sliding window bits as determined by the server.
+    * Both client and server MUST use the sliding window bits as 
+    determined by the server.
     * The client MUST use a memory level of 8.
     * The client MUST use a compression level of 9 (best_compression).
 ~~~

@@ -175,9 +175,12 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
                 :method: CONNECT
                 :scheme: wss
                 :authority: example.org
-                :path: /ws2
+                :path: /demo
                 sec-ws2-version: 1
                 sec-ws2-compression: lz4=1-9; deflate=8-15;
+
+   Modification to RFC 7540 <https://tools.ietf.org/html/
+   rfc7540#section-8.3> is required.
 
 3.2.  Server Handshake Reply
 
@@ -204,9 +207,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 3.2.1.  Handshake Error Reasons
 
    Valid error reasons are:
-
-
-
 
 
 
@@ -269,11 +269,11 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
       deflate (represented by 2)
 
    A WebSocket2 over HTTP/2 frame starts with the full frame length in a
-   special format called VarSize [##VarSize].  If the first octet is
-   less than 254, this is the full frame length.  If the first octet is
-   254, read the next 16 bits as a little endian unsigned number for the
-   frame length.  If the first octet is 255, read the next 32 bits as a
-   little endian unsigned number for the frame length.
+   special format called VarSize.  If the first octet is less than 254,
+   this is the full frame length.  If the first octet is 254, read the
+   next 16 bits as a little endian unsigned number for the frame length.
+   If the first octet is 255, read the next 32 bits as a little endian
+   unsigned number for the frame length.
 
 
 
@@ -341,7 +341,7 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    error code.  The HTTP/2 Data frame carrying this WebSocket2 frame
    MUST have the END_STREAM flag set.
 
-   The full websocket2 error frame with the length:
+   The full WebSocket2 error frame with the length:
 
               0     01234567     2        3        4      5
           +--------+--------+--------+--------+--------+--------+
@@ -356,7 +356,7 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
    CLOS
 
-      * This should be sent went a client or server want to close the
+      * This should be sent when a client or server want to close the
       stream gracefully.
 
    UTF8
@@ -426,9 +426,10 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
    The deflate compression method implements [RFC7692] but defines more
    strict bounds.  There is no ability to reset compression context.
 
-    * Both client and server MUST use the sliding window bits as determined by the server.
-    * The client MUST use a memory level of 8.
-    * The client MUST use a compression level of 9 (best_compression).
+      * Both client and server MUST use the sliding window bits as
+      determined by the server.
+      * The client MUST use a memory level of 8.
+      * The client MUST use a compression level of 9 (best_compression).
 
    Any sliding window MUST NEVER have its context reset.
 
@@ -437,7 +438,6 @@ Internet-Draft           WebSocket2 over HTTP/2             October 2016
 
    Before inflating the payload append 0x00, 0x00, 0xFF, 0xFF to the end
    of it.
-
 
 
 
